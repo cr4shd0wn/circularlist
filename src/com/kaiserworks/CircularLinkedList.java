@@ -2,40 +2,80 @@ package com.kaiserworks;
 
 public class CircularLinkedList<E> {
 
-    private Node current;
+    private Node<E> current;
+    private Node<E> head;
+    private Node<E> tail;
+
     private int size = 0;
     private int index = 0;
 
-
-
+    /**
+     * Returns the number of elements in the list
+     *
+     * @return the number of elements in the list
+     */
     public int size() {
 
         return size;
     }
 
+    /**
+     * Determines if there is another element in the list moving clockwise.  Because of the circular nature any list
+     * that has at least one element should always have a next element.
+     *
+     * @return true if there is another element in the list, false otherwise
+     */
     public boolean hasNext() {
 
-        return !( current.getNext() == null );
+        // Null pointer protection
+        if ( current == null ) {
+
+            return false;
+        }
+
+        return !( current.next == null );
     }
 
+    /**
+     * Moves the cursor for the list to the next element clockwise.
+     */
     public void next() {
 
-        current = current.getNext();
+        current = current.next;
     }
 
+    public E peek() {
+
+        return (E) current.next.e;
+
+    }
+
+    /**
+     * Determines if there is another element in the list moving counterclockwise.  Because of the circular nature any
+     * list with at least one element should always have a previous element.
+     *
+     * @return boolean true if there is another element in the list; otherwise false
+     */
     public boolean hasPrevious() {
 
-        return !( current.getPrevious() == null );
+        return !( current.previous == null );
     }
 
+    /**
+     * Moves the cursor for the list to the next element counterclockwise.
+     */
     public void previous() {
 
-        current = current.getPrevious();
+        current = current.previous;
     }
 
+    /**
+     * Returns the element at the current cursor position but does not remove it from the list
+     * @return
+     */
     public E get() {
 
-        return current.getElement();
+        return current.e;
     }
 
     public void clear() {
@@ -47,23 +87,15 @@ public class CircularLinkedList<E> {
 
     public boolean contains( E e ) {
 
-        int currentIndex = current.getIndex();
-        System.out.println( "currentIndex = [" + currentIndex + "]" );
+        for( Node<E> cursor = head; cursor.index < tail.index; cursor = cursor.next ) {
 
-        do {
-
-            if ( e.equals( current.getElement() ) ) {
+            if( e.equals( cursor.e ) ) {
 
                 return true;
             }
+        }
 
-            next();
-
-            System.out.println( "current.getIndex = [" + current.getIndex() + "]" );
-
-        } while ( currentIndex != current.getIndex() );
-
-        return false;
+        return e.equals( tail.e );
 
     }
 
@@ -75,44 +107,60 @@ public class CircularLinkedList<E> {
      */
     public void add( E e ) {
 
-        // Create a brand new node
-        Node node = new Node();
-        node.setIndex( index );
 
         if ( current == null ) {
 
-            System.out.println( "Current is null adding at the beginning" );
+            // Create a brand new node
+            Node node = new Node();
 
             // This one is easy. Setup the new node and then just add it as current
-            node.setElement( e );
-            node.setPrevious( node );
-            node.setNext( node );
+            node.e =  e ;
+            node.previous =  node;
+            node.next = node ;
+            node.index = 0;
             current = node;
+            head = node;
+            tail = node;
 
         } else {
 
-            // Create a brand new node for this element
-            node.setElement(e);
+            // Create a brand new node
+            Node node = new Node( head, e, tail );
 
-            // Set the new node so that the previous node is the current node and the next node is the current node's
-            // next one.
-            node.setPrevious( current );
-            node.setNext( current.getNext() );
+            // Index of this node is 1 more than that of the current tail
+            node.index = tail.index + 1;
 
-            // Move the new node in after the current node
-            current.setNext( node );
+            // Node will go after tail
+            tail.next = node;
 
-            // Make it so the next node can get to the new node when going backwards
-            node.getNext().setPrevious( node );
+            // Node will go before head
+            head.previous = node;
 
-            // Move the list to the new node
+            // Node becomes the new tail
+            tail = node;
+
+            // Advance the cursor to the new node as well
             current = node;
         }
 
-        // Since a node was added we advance the size and index
+        // Since a node was added we advance the size
         size++;
-        index++;
+    }
 
+    /**
+     *
+     */
+    private void fixIndices() {
+
+        int index = 0;
+
+
+        for ( Node<E> cursor = head; cursor != tail; cursor = cursor.next ) {
+            
+            cursor.index =  index++;
+        }
+
+        tail.index = index;
     }
 
     /**
@@ -127,33 +175,40 @@ public class CircularLinkedList<E> {
 
         if ( size == 1 ) {
 
-            current.setPrevious( null );
-            current.setNext( null );
+            current.previous = null;
+            current.next = null;
             current = null;
 
         } else {
 
-            Node removal = current;
+            current.previous.next = current.next;
 
-            current.getPrevious().setNext( current.getNext() );
+            current.next.previous = current.previous;
 
-            current.getNext().setPrevious( current.getPrevious() );
+            if ( current == head ) {
 
-            current = current.getPrevious();
+                head = current.previous;
+            }
 
-            removal.setPrevious( null );
-            removal.setNext( null );
+            if ( current == tail ) {
+
+                tail = current.next;
+            }
+
+            current = current.previous;
+
         }
 
         size--;
 
+        fixIndices();
+
     }
 
     /**
-     * Checks to see if there are any active characters.  Uses the current character node to determine if the list is
-     * empty or not.
+     * Checks to see if there are any elements in the list.
      *
-     * @return true if current node is null; otherwise false.
+     * @return true if the list is empty; otherwise false.
      */
     public boolean isEmpty() {
 
@@ -163,57 +218,33 @@ public class CircularLinkedList<E> {
     /**
      *
      */
-    private class Node {
+    private class Node<E> {
 
         private Node previous;
         private E e;
         private Node next;
         private int index = 0;
 
-        void setIndex(int index) {
+        Node() {
 
-            this.index = index;
+            this.previous = null;
+            this.e = null;
+            this.next = null;
         }
 
-        int getIndex() {
-
-            return index;
-        }
-
-        Node getPrevious() {
-
-            return previous;
-        }
-
-        void setPrevious(Node previous) {
+        Node( Node<E> previous, E e, Node<E> next ) {
 
             this.previous = previous;
-        }
-
-        E getElement() {
-
-            return e;
-        }
-
-        void setElement(E e) {
             this.e = e;
-        }
-
-        Node getNext() {
-
-            return next;
-        }
-
-        void setNext(Node next) {
-
             this.next = next;
         }
 
         public String toString() {
 
-            return "Node{ element=" + getElement().toString()
-                    + " previous=" + getPrevious().getElement().toString()
-                    + " next=" + getNext().getElement().toString() + "}";
+            return "Node{ index=" + index
+                    + " element=" + e.toString()
+                    + " previous=" + previous.e.toString()
+                    + " next=" + next.e.toString() + "}";
         }
     }
 }
